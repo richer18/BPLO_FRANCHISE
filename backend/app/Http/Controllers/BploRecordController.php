@@ -8,7 +8,7 @@ use Carbon\Carbon;
 
 class BploRecordController extends Controller
 {
-    // ✅ Create (POST)
+    // ✅ CREATE (POST)
     public function store(Request $request)
     {
         // 🔹 Validate input
@@ -21,6 +21,9 @@ class BploRecordController extends Controller
             'STREET' => 'nullable|string|max:255',
             'BARANGAY' => 'required|string|max:100',
             'CELLPHONE' => 'nullable|string|max:20',
+            'CEDULA_NO' => 'nullable|string|max:50',
+            'CEDULA_DATE' => 'nullable|date',
+
             'MCH_NO' => 'nullable|string|max:50',
             'FRANCHISE_NO' => 'nullable|string|max:50',
             'MAKE' => 'nullable|string|max:50',
@@ -28,16 +31,22 @@ class BploRecordController extends Controller
             'CHASSIS_NO' => 'nullable|string|max:100',
             'PLATE' => 'nullable|string|max:20',
             'COLOR' => 'nullable|string|max:50',
+
             'LTO_ORIGINAL_RECEIPT' => 'nullable|string|max:100',
             'LTO_CERTIFICATE_REGISTRATION' => 'nullable|string|max:100',
             'LTO_MV_FILE_NO' => 'nullable|string|max:100',
+
             'ORIGINAL_RECEIPT_PAYMENT' => 'nullable|string|max:100',
             'PAYMENT_DATE' => 'nullable|date',
             'AMOUNT' => 'nullable|numeric',
+
             'RENEW_FROM' => 'nullable|date',
+            'RENEW_TO' => 'nullable|date',
             'MAYORS_PERMIT_NO' => 'nullable|string|max:50',
+
             'LICENSE_NO' => 'nullable|string|max:50',
             'LICENSE_VALID_DATE' => 'nullable|date',
+
             'COMMENT' => 'nullable|string',
         ]);
 
@@ -65,33 +74,36 @@ class BploRecordController extends Controller
         $record = BploRecord::create($validated);
 
         return response()->json([
+            'success' => true,
             'message' => 'Record created successfully!',
             'record' => $record
         ]);
     }
 
-    // ✅ Read all (GET)
+    // ✅ READ ALL (GET)
     public function index()
     {
         return BploRecord::orderBy('ID', 'DESC')->get();
     }
 
-    // ✅ Read single (GET)
+    // ✅ READ SINGLE (GET)
     public function show($id)
     {
         $record = BploRecord::find($id);
-        return $record ?: response()->json(['message' => 'Record not found'], 404);
+        return $record ?: response()->json(['success' => false, 'message' => 'Record not found'], 404);
     }
 
-    // ✅ Update (PUT)
+    // ✅ UPDATE (PUT)
     public function update(Request $request, $id)
     {
         $record = BploRecord::find($id);
-        if (!$record) return response()->json(['message' => 'Record not found'], 404);
+        if (!$record) {
+            return response()->json(['success' => false, 'message' => 'Record not found'], 404);
+        }
 
         $data = $request->all();
 
-        // Auto-update renew date and status if renew_from changes
+        // 🔹 Recalculate renew date & status if renew_from changes
         if (!empty($data['RENEW_FROM'])) {
             $data['RENEW_TO'] = Carbon::parse($data['RENEW_FROM'])->addYear()->format('Y-m-d');
         }
@@ -103,16 +115,26 @@ class BploRecordController extends Controller
 
         $record->update($data);
 
-        return response()->json(['message' => 'Record updated successfully!', 'record' => $record]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Record updated successfully!',
+            'record' => $record
+        ]);
     }
 
-    // ✅ Delete (DELETE)
+    // ✅ DELETE (DELETE)
     public function destroy($id)
     {
         $record = BploRecord::find($id);
-        if (!$record) return response()->json(['message' => 'Record not found'], 404);
+        if (!$record) {
+            return response()->json(['success' => false, 'message' => 'Record not found'], 404);
+        }
 
         $record->delete();
-        return response()->json(['message' => 'Record deleted successfully!']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Record deleted successfully!'
+        ]);
     }
 }

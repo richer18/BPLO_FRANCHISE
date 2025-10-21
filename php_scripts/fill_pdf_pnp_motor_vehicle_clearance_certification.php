@@ -1,8 +1,36 @@
 <?php
-require 'vendor/autoload.php';
+require __DIR__ . '/../backend/vendor/autoload.php';
 use setasign\Fpdi\Fpdi;
 
-// Function: Get suffix only
+
+// --- Database connection (same as your .env in Laravel) ---
+$servername = "127.0.0.1";
+$username = "root";
+$password = "";
+$dbname = "business_permit_license"; // ⚠️ change to your actual DB name
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+if ($conn->connect_error) {
+    die("Database connection failed: " . $conn->connect_error);
+}
+
+// --- Get record ID from URL ---
+$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+if ($id <= 0) {
+    die("Invalid record ID.");
+}
+
+// --- Fetch record from database ---
+$sql = "SELECT * FROM bplo_records WHERE ID = $id";
+$result = $conn->query($sql);
+
+if ($result->num_rows == 0) {
+    die("Record not found.");
+}
+
+$data = $result->fetch_assoc();
+
+// --- FPDI setup ---
 function getOrdinalSuffix($number) {
     if (!in_array(($number % 100), [11, 12, 13])) {
         switch ($number % 10) {
@@ -14,33 +42,30 @@ function getOrdinalSuffix($number) {
     return "TH";
 }
 
-// Create new PDF
 $pdf = new Fpdi();
 $pdf->AddPage();
-
-// Import PDF template
-$pdf->setSourceFile('PNP_MOTOR_VEHICLE_CLEARANCE_CERTIFICATION_CLASS_B_TEMPLATE_V3.pdf');
+$pdf->setSourceFile(__DIR__ . '/../template/PNP_MOTOR_VEHICLE_CLEARANCE_CERTIFICATION_CLASS_B_TEMPLATE_V3.pdf');
 $tplIdx = $pdf->importPage(1);
-$pdf->useTemplate($tplIdx, 0, 0, 215.9, 330.2); // long bond size (8.5 x 13 in)
+$pdf->useTemplate($tplIdx, 0, 0, 215.9, 330.2); // long bond size
 
-// Font setup
 $pdf->SetFont('Times', '', 12);
 
+
 // --- Hardcoded values ---
-$operator_name   = "JUAN DELA CRUZ";
-$barangay        = "MAYABON";
-$make            = "HONDA";
-$motor_no        = "MTR-123456";
-$chassis_no      = "CHS-78910";
-$plate_no        = "XYZ-321";
-$color        = "RED";
-$date_registered = "OCTOBER 1, 2025";
+$operator_name   = strtoupper(trim($data['FNAME'] . " " . $data['MNAME'] . " " . $data['LNAME']));
+$barangay        = strtoupper($data['BARANGAY']);
+$make            = strtoupper($data['MAKE']);
+$motor_no        = strtoupper($data['MOTOR_NO']);
+$chassis_no      = strtoupper($data['CHASSIS_NO']);
+$plate_no        = strtoupper($data['PLATE']);
+$color           = strtoupper($data['COLOR']);
+$date_registered = date("F j, Y", strtotime($data['DATE'] ?? date("Y-m-d")));
 $date_pay = $date_registered;
-$original_receipt = "12345678";
-$lto_original_receipt = "1244678";
-$lto_certificate_registration = "1244678";
-$mv_file_no = "1244678";
-$amount = "740";
+$original_receipt = strtoupper($data['ORIGINAL_RECEIPT_PAYMENT']);
+$lto_original_receipt =strtoupper($data['LTO_ORIGINAL_RECEIPT']);
+$lto_certificate_registration = strtoupper($data['LTO_CERTIFICATE_REGISTRATION']);
+$mv_file_no = strtoupper($data['LTO_MV_FILE_NO']);
+$amount =strtoupper($data['AMOUNT']);
 
 
 // --- Write text on template ---

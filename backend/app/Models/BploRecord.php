@@ -27,11 +27,13 @@ class BploRecord extends Model
         'MUNICIPALITY',
         'PROVINCE',
         'CELLPHONE',
+        'CEDULA_NO',          // ✅ Added
+        'CEDULA_DATE',        // ✅ Added
         'MCH_NO',
         'FRANCHISE_NO',
         'MAKE',
         'MOTOR_NO',
-        'CHASSIS_NO', // ✅ corrected: matches your DB column name
+        'CHASSIS_NO',
         'PLATE',
         'COLOR',
         'LTO_ORIGINAL_RECEIPT',
@@ -53,13 +55,14 @@ class BploRecord extends Model
     // ✅ Automatically cast date fields as Carbon instances
     protected $casts = [
         'DATE' => 'date',
+        'CEDULA_DATE' => 'date',   // ✅ Added
         'PAYMENT_DATE' => 'date',
         'RENEW_FROM' => 'date',
         'RENEW_TO' => 'date',
         'LICENSE_VALID_DATE' => 'date',
     ];
 
-    // ✅ Auto-compute STATUS dynamically (if you want it auto-updated)
+    // ✅ Auto-compute STATUS dynamically
     public function getStatusAttribute($value)
     {
         if (!empty($this->RENEW_TO)) {

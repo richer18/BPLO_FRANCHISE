@@ -1,8 +1,36 @@
 <?php
-require 'vendor/autoload.php';
+require __DIR__ . '/../backend/vendor/autoload.php';
 use setasign\Fpdi\Fpdi;
 
-// Function: Get suffix only
+
+// --- Database connection (same as your .env in Laravel) ---
+$servername = "127.0.0.1";
+$username = "root";
+$password = "";
+$dbname = "business_permit_license"; // ⚠️ change to your actual DB name
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+if ($conn->connect_error) {
+    die("Database connection failed: " . $conn->connect_error);
+}
+
+// --- Get record ID from URL ---
+$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+if ($id <= 0) {
+    die("Invalid record ID.");
+}
+
+// --- Fetch record from database ---
+$sql = "SELECT * FROM bplo_records WHERE ID = $id";
+$result = $conn->query($sql);
+
+if ($result->num_rows == 0) {
+    die("Record not found.");
+}
+
+$data = $result->fetch_assoc();
+
+// --- FPDI setup ---
 function getOrdinalSuffix($number) {
     if (!in_array(($number % 100), [11, 12, 13])) {
         switch ($number % 10) {
@@ -14,30 +42,26 @@ function getOrdinalSuffix($number) {
     return "TH";
 }
 
-// Create new PDF
 $pdf = new Fpdi();
 $pdf->AddPage();
-
-// Import PDF template
-$pdf->setSourceFile('ORDER_TEMPLATE_v3.pdf');
+$pdf->setSourceFile(__DIR__ . '/../template/ORDER_TEMPLATE_v3.pdf');
 $tplIdx = $pdf->importPage(1);
-$pdf->useTemplate($tplIdx, 0, 0, 215.9, 330.2); // long bond size (8.5 x 13 in)
+$pdf->useTemplate($tplIdx, 0, 0, 215.9, 330.2); // long bond size
 
-// Font setup
 $pdf->SetFont('Times', '', 12);
 
 // --- Hardcoded values ---
-$operator_name   = "Juan Dela Cruz";
-$franchise_no    = "FR-2025-001";
-$mch_no          = "001";
-$barangay        = "MALONGCAY-DIOT";
-$make            = "HONDA";
-$motor_no        = "MTR-123456";
-$chassis_no      = "CHS-78910";
-$date_pay = "OCTOBER 1, 2025";
+$operator_name   = strtoupper(trim($data['FNAME'] . " " . $data['MNAME'] . " " . $data['LNAME']));
+$franchise_no    = $data['FRANCHISE_NO'];
+$mch_no          = $data['MCH_NO'];
+$barangay        = strtoupper($data['BARANGAY']);
+$make            = strtoupper($data['MAKE']);
+$motor_no        = strtoupper($data['MOTOR_NO']);
+$chassis_no      = strtoupper($data['CHASSIS_NO']);
+$date_pay = date("F j, Y", strtotime($data['DATE'] ?? date("Y-m-d")));
 $date_pay2 = $date_pay;
-$date_renewed_from = "JANUARY 30, 2025";
-$date_renewed_to = "JANUARY 30, 2026";
+$date_renewed_from = date("F j, Y", strtotime($data['RENEW_FROM'] ?? date("Y-m-d")));
+$date_renewed_to = date("F j, Y", strtotime($data['RENEW_TO'] ?? date("Y-m-d")));
 
 // --- Write text on template ---
 $pdf->SetFont('Times', 'B', 11);

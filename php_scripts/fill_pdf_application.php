@@ -62,9 +62,9 @@ $motor_no        = strtoupper($data['MOTOR_NO']);
 $chassis_no      = strtoupper($data['CHASSIS_NO']);
 $plate_no        = strtoupper($data['PLATE']);
 $date_registered = date("F j, Y", strtotime($data['DATE'] ?? date("Y-m-d")));
-$cedula_no       = "123123"; // replace if in DB
+$cedula_no       = strtoupper($data['CEDULA_NO']);
 $municipality    = strtoupper($data['MUNICIPALITY']);
-$cedula_date     = "JANUARY 5, 2025"; // replace if in DB
+$cedula_date     = date("F j, Y", strtotime($data['CEDULA_DATE'] ?? date("Y-m-d")));
 
 // --- Process date ---
 preg_match('/^([A-Z]+ \d{1,2}), (\d{4})$/', $cedula_date, $matches);
@@ -77,7 +77,7 @@ $month = strtoupper($date->format('F'));
 $suffix = getOrdinalSuffix($day);
 
 // --- Write data to PDF ---
-$pdf->SetXY(20, 55);
+$pdf->SetXY(29, 55);
 $pdf->Write(10, $operator_name);
 
 $pdf->SetXY(148, 56);
@@ -104,13 +104,13 @@ $pdf->Write(10, $plate_no);
 $pdf->SetXY(20, 153);
 $pdf->Write(12, $date_registered);
 
-$pdf->SetXY(140, 167);
+$pdf->SetXY(157, 167);
 $pdf->Write(12, $applicant_1);
 
 $pdf->SetXY(25, 190);
 $pdf->Write(12, $applicant_2);
 
-$pdf->SetXY(140, 212);
+$pdf->SetXY(157, 212);
 $pdf->Write(12, $applicant_affiant);
 
 // Day + suffix

@@ -1,186 +1,409 @@
-import * as React from 'react';
-import PropTypes from 'prop-types';
-import AppBar from '@mui/material/AppBar';
-import Box from '@mui/material/Box';
-import CssBaseline from '@mui/material/CssBaseline';
-import Divider from '@mui/material/Divider';
-import Drawer from '@mui/material/Drawer';
-import IconButton from '@mui/material/IconButton';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
-import MenuIcon from '@mui/icons-material/Menu';
-import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
+import React, { useEffect, useState } from "react";
+import axiosInstance from "../../api/axiosInstance";
+import { Close as CloseIcon } from "@mui/icons-material";
+import {
+  Autocomplete,
+  Box,
+  Button,
+  Card,
+  Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  InputAdornment,
+  IconButton,
+  Menu,
+  MenuItem,
+  Paper,
+  styled,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 
-
-import { styled } from '@mui/material/styles';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell, { tableCellClasses } from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
-
-const drawerWidth = 240;
-const navItems = ['Home', 'About', 'Contact'];
-
+import TablePagination from "@mui/material/TablePagination";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
+import GavelIcon from "@mui/icons-material/Gavel";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import StorefrontIcon from "@mui/icons-material/Storefront";
+import BploForm from "../form/BploForm";
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
-  [`&.${tableCellClasses.head}`]: {
-    backgroundColor: theme.palette.common.black,
-    color: theme.palette.common.white,
-  },
-  [`&.${tableCellClasses.body}`]: {
-    fontSize: 14,
-  },
+  whiteSpace: "nowrap",
+  fontWeight: "bold",
+  textAlign: "center",
+  background: "linear-gradient(135deg, #1976d2, #63a4ff)",
+  color: theme.palette.common.white,
+  borderBottom: `2px solid ${theme.palette.primary.dark}`,
+  fontSize: 14,
 }));
 
-const StyledTableRow = styled(TableRow)(({ theme }) => ({
-  '&:nth-of-type(odd)': {
-    backgroundColor: theme.palette.action.hover,
-  },
-  // hide last border
-  '&:last-child td, &:last-child th': {
-    border: 0,
-  },
-}));
-
-function createData(name, calories, fat, carbs, protein) {
-  return { name, calories, fat, carbs, protein };
-}
-
-const rows = [
-  createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
-  createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
-  createData('Eclair', 262, 16.0, 24, 6.0),
-  createData('Cupcake', 305, 3.7, 67, 4.3),
-  createData('Gingerbread', 356, 16.0, 49, 3.9),
-];
-
-
-function DrawerAppBar(props) {
-  const { window } = props;
-  const [mobileOpen, setMobileOpen] = React.useState(false);
-
-  const handleDrawerToggle = () => {
-    setMobileOpen((prevState) => !prevState);
-  };
-
-  const drawer = (
-    <Box onClick={handleDrawerToggle} sx={{ textAlign: 'center' }}>
-      <Typography variant="h6" sx={{ my: 2 }}>
-        MUI
-      </Typography>
-      <Divider />
-      <List>
-        {navItems.map((item) => (
-          <ListItem key={item} disablePadding>
-            <ListItemButton sx={{ textAlign: 'center' }}>
-              <ListItemText primary={item} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
-
-  const container = window !== undefined ? () => window().document.body : undefined;
-
-  return (
-    <Box sx={{ display: 'flex' }}>
-      <CssBaseline />
-      <AppBar component="nav">
-        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          {/* Left Side - Logo */}
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: 'none' } }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography
-              variant="h6"
-              component="div"
-              sx={{ display: { xs: 'none', sm: 'block' } }}
-            >
-              MUI
-            </Typography>
-          </Box>
-
-          {/* Right Side - Nav Items */}
-          <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 1 }}>
-            {navItems.map((item) => (
-              <Button key={item} sx={{ color: '#fff' }}>
-                {item}
-              </Button>
-            ))}
-          </Box>
-        </Toolbar>
-      </AppBar>
-
-      {/* Drawer for mobile */}
-      <nav>
-        <Drawer
-          container={container}
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true,
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-        >
-          {drawer}
-        </Drawer>
-      </nav>
-
-      {/* Main content */}
-      <Box component="main" sx={{ p: 3 }}>
-        <Toolbar />
-        <TableContainer component={Paper}>
-      <Table sx={{ minWidth: 700 }} aria-label="customized table">
-        <TableHead>
-          <TableRow>
-            <StyledTableCell>Dessert (100g serving)</StyledTableCell>
-            <StyledTableCell align="right">Calories</StyledTableCell>
-            <StyledTableCell align="right">Fat&nbsp;(g)</StyledTableCell>
-            <StyledTableCell align="right">Carbs&nbsp;(g)</StyledTableCell>
-            <StyledTableCell align="right">Protein&nbsp;(g)</StyledTableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <StyledTableRow key={row.name}>
-              <StyledTableCell component="th" scope="row">
-                {row.name}
-              </StyledTableCell>
-              <StyledTableCell align="right">{row.calories}</StyledTableCell>
-              <StyledTableCell align="right">{row.fat}</StyledTableCell>
-              <StyledTableCell align="right">{row.carbs}</StyledTableCell>
-              <StyledTableCell align="right">{row.protein}</StyledTableCell>
-            </StyledTableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-      </Box>
-    </Box>
-  );
-}
-
-DrawerAppBar.propTypes = {
-  window: PropTypes.func,
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  const options = { month: "short", day: "numeric", year: "numeric" };
+  return date.toLocaleDateString("en-US", options);
 };
 
-export default DrawerAppBar;
+function FrontPage() {
+  const [records, setRecords] = useState([]);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Dialog state
+  const [openForm, setOpenForm] = useState(false);
+  const handleOpenForm = () => setOpenForm(true);
+  const handleCloseForm = () => setOpenForm(false);
+
+  // Menu state for print
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+
+  useEffect(() => {
+    fetchRecords();
+  }, []);
+
+  const fetchRecords = async () => {
+    try {
+      const response = await axiosInstance.get("/bplo");
+      setRecords(response.data);
+    } catch (error) {
+      console.error("Error fetching records:", error);
+    }
+  };
+
+  const handleChangePage = (event, newPage) => setPage(newPage);
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Menu handlers
+  const handleMenuOpen = (event, record) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedRecord(record);
+  };
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedRecord(null);
+  };
+
+  const handlePrint = (type) => {
+    handleMenuClose();
+    if (!selectedRecord) return console.warn("No record selected for printing");
+
+    const base = "http://localhost/BPLO_FRANCHISE/php_scripts";
+    let url = "";
+
+    switch (type) {
+      case "application":
+        url = `${base}/fill_pdf_application.php?id=${selectedRecord.ID}`;
+        break;
+      case "certification":
+        url = `${base}/fill_pdf_certification.php?id=${selectedRecord.ID}`;
+        break;
+      case "order":
+        url = `${base}/fill_pdf_order.php?id=${selectedRecord.ID}`;
+        break;
+      case "pnp":
+        url = `${base}/fill_pdf_pnp_motor_vehicle_clearance_certification.php?id=${selectedRecord.ID}`;
+        break;
+      default:
+        return;
+    }
+
+    window.open(url, "_blank");
+  };
+
+  return (
+    <Box
+      sx={{
+        flexGrow: 1,
+        padding: 3,
+        minHeight: "100vh",
+      }}
+    >
+      <Box sx={{ mb: 4 }}>
+        {/* Search & Filters Row */}
+        <Box display="flex" alignItems="center" gap={3} sx={{ py: 2 }}>
+          <Box display="flex" alignItems="center" gap={2} flexGrow={1}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              label="Search Records"
+              placeholder="Name or Receipt Number"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">{/* icon here */}</InputAdornment>
+                ),
+                sx: { borderRadius: "8px" },
+              }}
+            />
+            <Box display="flex" gap={2}>
+              <Autocomplete
+                disablePortal
+                sx={{ width: 180 }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Select Month" variant="outlined" />
+                )}
+              />
+
+              <Autocomplete
+                disablePortal
+                sx={{ width: 150 }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Select Year" variant="outlined" />
+                )}
+              />
+
+              <Button
+                variant="contained"
+                color="primary"
+                sx={{
+                  px: 4,
+                  height: "56px",
+                  color: "white",
+                  borderRadius: "8px",
+                  boxShadow: "none",
+                  "&:hover": { boxShadow: "0px 3px 6px rgba(0, 0, 0, 0.1)" },
+                }}
+              >
+                Apply Filters
+              </Button>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Action Buttons Row */}
+        <Box display="flex" alignItems="center" gap={2} sx={{ py: 1 }}>
+          <Box display="flex" gap={2} flexGrow={1}>
+            <Tooltip title="Add New Entry" arrow>
+              <Button
+                variant="contained"
+                sx={{
+                  px: 3.5,
+                  backgroundColor: "#1976d2",
+                  color: "white",
+                  "&:hover": {
+                    backgroundColor: "#1565c0",
+                    transform: "translateY(-1px)",
+                  },
+                  textTransform: "none",
+                  fontSize: 15,
+                  fontWeight: 600,
+                  borderRadius: "10px",
+                  minWidth: "130px",
+                  height: "44px",
+                }}
+                onClick={handleOpenForm} // ✅ fixed
+              >
+                New Entry
+              </Button>
+            </Tooltip>
+
+            <Tooltip title="Generate Daily Report" arrow>
+              <Button
+                variant="contained"
+                color="success"
+                sx={{
+                  px: 3.5,
+                  backgroundColor: "#2e7d32",
+                  color: "white",
+                  "&:hover": { backgroundColor: "#1b5e20" },
+                }}
+              >
+                Renew
+              </Button>
+            </Tooltip>
+
+            <Tooltip title="Generate Receipt Report" arrow>
+              <Button
+                variant="contained"
+                color="secondary"
+                sx={{
+                  px: 3.5,
+                  backgroundColor: "#7b1fa2",
+                  color: "white",
+                  "&:hover": { backgroundColor: "#6a1b9a" },
+                }}
+              >
+                Drop
+              </Button>
+            </Tooltip>
+          </Box>
+
+          <Box display="flex" gap={2}>
+            <Tooltip title="Financial Reports" arrow>
+              <Button variant="contained" color="error">
+                Financial Report
+              </Button>
+            </Tooltip>
+            <Tooltip title="Export Data" arrow>
+              <Button variant="contained" color="info">
+                Download
+              </Button>
+            </Tooltip>
+          </Box>
+        </Box>
+
+        {/* Summary Cards */}
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          gap={3}
+          sx={{ mt: 4, flexDirection: { xs: "column", sm: "row" } }}
+        >
+          {[
+            {
+              text: "Total Revenue",
+              icon: <AccountBalanceIcon />,
+              gradient: "linear-gradient(135deg, #1976d2, #63a4ff)",
+            },
+            {
+              text: "Total Registered",
+              icon: <BusinessCenterIcon />,
+              gradient: "linear-gradient(135deg, #2e7d32, #66bb6a)",
+            },
+            {
+              text: "Total Renew",
+              icon: <GavelIcon />,
+              gradient: "linear-gradient(135deg, #ed6c02, #ffb74d)",
+            },
+            {
+              text: "Total Expiry",
+              icon: <StorefrontIcon />,
+              gradient: "linear-gradient(135deg, #6a1b9a, #ab47bc)",
+            },
+            {
+              text: "Total Expired",
+              icon: <ReceiptLongIcon />,
+              gradient: "linear-gradient(135deg, #00838f, #4dd0e1)",
+            },
+          ].map(({ text, icon, gradient }) => (
+            <Card
+              key={text}
+              sx={{
+                flex: 1,
+                p: 3,
+                borderRadius: "16px",
+                background: gradient,
+                color: "white",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+              }}
+            >
+              <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                <Box>
+                  <Typography variant="subtitle2">{text}</Typography>
+                  <Typography variant="h5">₱0.00</Typography>
+                </Box>
+                <Box sx={{ opacity: 0.2 }}>{icon}</Box>
+              </Box>
+            </Card>
+          ))}
+        </Box>
+      </Box>
+
+      {/* TABLE */}
+      <TableContainer component={Paper} sx={{ borderRadius: 4, boxShadow: 6, mt: 4 }}>
+        <Table stickyHeader>
+          <TableHead>
+            <TableRow>
+              <StyledTableCell>TRANSACTION CODE</StyledTableCell>
+              <StyledTableCell>NAME</StyledTableCell>
+              <StyledTableCell>BARANGAY</StyledTableCell>
+              <StyledTableCell>MAKE</StyledTableCell>
+              <StyledTableCell>MCH NO</StyledTableCell>
+              <StyledTableCell>CASE NO</StyledTableCell>
+              <StyledTableCell>RENEW FROM</StyledTableCell>
+              <StyledTableCell>RENEW TO</StyledTableCell>
+              <StyledTableCell>STATUS</StyledTableCell>
+              <StyledTableCell>ACTION</StyledTableCell>
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {records
+              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              .map((r) => (
+                <TableRow key={r.ID} hover>
+                  <TableCell align="center">{r.TRANSACTION_CODE}</TableCell>
+                  <TableCell align="center">
+                    {r.FNAME} {r.LNAME}
+                  </TableCell>
+                  <TableCell align="center">{r.BARANGAY}</TableCell>
+                  <TableCell align="center">{r.MAKE}</TableCell>
+                  <TableCell align="center">{r.MCH_NO}</TableCell>
+                  <TableCell align="center">{r.FRANCHISE_NO}</TableCell>
+                  <TableCell align="center">{formatDate(r.RENEW_FROM)}</TableCell>
+                  <TableCell align="center">{formatDate(r.RENEW_TO)}</TableCell>
+                  <TableCell align="center">
+                    <Chip label={r.STATUS || "Pending"} color="info" size="small" />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Button
+                      variant="contained"
+                      color="success"
+                      size="small"
+                      onClick={(e) => handleMenuOpen(e, r)}
+                    >
+                      🖨️ Print
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+          </TableBody>
+        </Table>
+
+        <TablePagination
+          rowsPerPageOptions={[10, 20, 50]}
+          component="div"
+          count={records.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
+      </TableContainer>
+
+      {/* PRINT MENU */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+      >
+        <MenuItem onClick={() => handlePrint("application")}>Application PDF</MenuItem>
+        <MenuItem onClick={() => handlePrint("certification")}>Certification PDF</MenuItem>
+        <MenuItem onClick={() => handlePrint("order")}>Order PDF</MenuItem>
+        <MenuItem onClick={() => handlePrint("pnp")}>PNP Clearance PDF</MenuItem>
+      </Menu>
+
+      {/* DIALOG FORM */}
+      <Dialog open={openForm} onClose={handleCloseForm} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ fontWeight: "bold" }}>
+          📝 New BPLO Franchise Entry
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseForm}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <BploForm onClose={handleCloseForm} />
+        </DialogContent>
+      </Dialog>
+    </Box>
+  );
+}
+
+export default FrontPage;

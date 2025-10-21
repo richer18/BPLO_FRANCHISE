@@ -1,22 +1,58 @@
-// src/BploForm.js
 import React, { useState, useEffect } from "react";
+import "bootstrap/dist/css/bootstrap.min.css";
 import {
-  Grid,
+  Autocomplete,
   TextField,
   MenuItem,
   Button,
-  Paper,
   Typography,
   Box,
+  Divider,
+  Card,
+  CardContent,
+  Collapse,
+  IconButton,
 } from "@mui/material";
+import {
+  ExpandMore as ExpandMoreIcon,
+  PersonOutline as PersonIcon,
+  DirectionsCarOutlined as CarIcon,
+  AutorenewOutlined as RenewIcon,
+  LocalAtmOutlined as PaymentIcon,
+  CommentOutlined as CommentIcon,
+} from "@mui/icons-material";
+import { styled } from "@mui/material/styles";
 import axiosInstance from "../../api/axiosInstance";
 import dayjs from "dayjs";
 
+const StyledCard = styled(Card)(({ theme }) => ({
+  marginBottom: theme.spacing(3),
+  borderRadius: "16px",
+  border: `1px solid ${theme.palette.divider}`,
+}));
+
+const ExpandButton = styled(IconButton)(({ expand }) => ({
+  transform: !expand ? "rotate(0deg)" : "rotate(180deg)",
+  marginLeft: "auto",
+  transition: "transform 0.3s ease",
+}));
+
 export default function BploForm() {
-  const [records, setRecords] = useState([]);
+  const [expanded, setExpanded] = useState({
+    owner: true,
+    vehicle: false,
+    payment: false,
+    renewal: false,
+    comment: false,
+  });
+
+  const toggleExpand = (section) =>
+    setExpanded((prev) => ({ ...prev, [section]: !prev[section] }));
+
+  const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({
-    DATE: "", // date
-    TRANSACTION_CODE: "", // backend will generate if empty
+    DATE: "",
+    TRANSACTION_CODE: "",
     FNAME: "",
     MNAME: "",
     LNAME: "",
@@ -34,76 +70,38 @@ export default function BploForm() {
     CHASSIS_NO: "",
     PLATE: "",
     COLOR: "",
-    LTO_ORIGINAL_RECEIPT: "",
-    LTO_CERTIFICATE_REGISTRATION: "",
-    LTO_MV_FILE_NO: "",
+    DRIVER: "",
     ORIGINAL_RECEIPT_PAYMENT: "",
     PAYMENT_DATE: "",
     AMOUNT: "",
+    CEDULA_NO: "",
+    CEDULA_DATE: "",
     RENEW_FROM: "",
     RENEW_TO: "",
+    STATUS: "",
     MAYORS_PERMIT_NO: "",
     LICENSE_NO: "",
     LICENSE_VALID_DATE: "",
-    DRIVER: "",
-    STATUS: "",
     COMMENT: "",
   });
 
-  const barangays = [
-    "Mayabon",
-    "Poblacion",
-    "Malongcay Diot",
-    "Calango",
-    "Nabago",
-    "Nasig-id",
-    "Tampi",
-    "Basak",
-    "Cansalo-ay",
-    "Lutoban",
-  ];
-
-  const makes = [
-    "HONDA",
-    "YAMAHA",
-    "SUZUKI",
-    "KAWASAKI",
-    "SYM",
-    "KYMCO",
-    "OTHER",
-  ];
+  const makes = ["HONDA", "YAMAHA", "SUZUKI", "KAWASAKI", "SYM", "KYMCO", "OTHER"];
 
   useEffect(() => {
-    loadRecords();
-  }, []);
-
-  const loadRecords = async () => {
-    try {
-      const res = await axiosInstance.get("/bplo");
-      setRecords(res.data);
-    } catch (err) {
-      console.error("Failed to load records", err);
+    if (form.RENEW_FROM) {
+      const renewFrom = dayjs(form.RENEW_FROM);
+      const renewTo = renewFrom.add(1, "year").format("YYYY-MM-DD");
+      const isActive =
+        dayjs().isBefore(dayjs(renewTo)) || dayjs().isSame(dayjs(renewTo));
+      setForm((prev) => ({
+        ...prev,
+        RENEW_TO: renewTo,
+        STATUS: isActive ? "Pending" : "Completed",
+      }));
+    } else {
+      setForm((prev) => ({ ...prev, RENEW_TO: "", STATUS: "Pending" }));
     }
-  };
-
-  // compute renew_to and status whenever RENEW_FROM changes
-  useEffect(() => {
-  if (form.RENEW_FROM) {
-    const renewFrom = dayjs(form.RENEW_FROM);
-    const renewTo = renewFrom.add(1, "year").format("YYYY-MM-DD");
-    const isActive = dayjs().isBefore(dayjs(renewTo)) || dayjs().isSame(dayjs(renewTo));
-
-    setForm((prev) => ({
-      ...prev,
-      RENEW_TO: renewTo,
-      STATUS: isActive ? "Pending" : "Completed", // ✅ Matches ENUM values
-    }));
-  } else {
-    setForm((prev) => ({ ...prev, RENEW_TO: "", STATUS: "Pending" }));
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [form.RENEW_FROM]);
-
+  }, [form.RENEW_FROM]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -112,23 +110,25 @@ export default function BploForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // If DATE not provided, set it to today
     const payload = { ...form };
     if (!payload.DATE) payload.DATE = dayjs().format("YYYY-MM-DD");
-
     try {
-      await axiosInstance.post("/bplo", payload);
-      alert("✅ Record saved successfully!");
+      if (editId) {
+        await axiosInstance.put(`/bplo/${editId}`, payload);
+        alert("✅ Record updated successfully!");
+      } else {
+        await axiosInstance.post("/bplo", payload);
+        alert("✅ Record saved successfully!");
+      }
       resetForm();
-      loadRecords();
     } catch (err) {
       console.error("Save failed", err);
       alert("❌ Failed to save record. Check console.");
     }
   };
 
-  const resetForm = () =>
+  const resetForm = () => {
+    setEditId(null);
     setForm({
       DATE: "",
       TRANSACTION_CODE: "",
@@ -149,223 +149,449 @@ export default function BploForm() {
       CHASSIS_NO: "",
       PLATE: "",
       COLOR: "",
-      LTO_ORIGINAL_RECEIPT: "",
-      LTO_CERTIFICATE_REGISTRATION: "",
-      LTO_MV_FILE_NO: "",
+      DRIVER: "",
       ORIGINAL_RECEIPT_PAYMENT: "",
       PAYMENT_DATE: "",
       AMOUNT: "",
+      CEDULA_NO: "",
+      CEDULA_DATE: "",
       RENEW_FROM: "",
       RENEW_TO: "",
+      STATUS: "",
       MAYORS_PERMIT_NO: "",
       LICENSE_NO: "",
       LICENSE_VALID_DATE: "",
-      DRIVER: "",
-      STATUS: "",
       COMMENT: "",
     });
+  };
 
   return (
-    <Box sx={{ p: 4 }}>
-      <Paper elevation={3} sx={{ p: 4, maxWidth: 1100, margin: "auto" }}>
-        <Typography variant="h5" gutterBottom>
-          📝 BPLO Franchise Record
-        </Typography>
+    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: "auto" }}>
+      <form onSubmit={handleSubmit}>
+        {/* ========== OWNER INFO ========== */}
+        <StyledCard>
+          <CardContent className="d-flex align-items-center">
+            <PersonIcon color="primary" className="me-2" />
+            <Typography variant="h6" className="flex-grow-1">
+              Owner Information
+            </Typography>
+            <ExpandButton
+              expand={expanded.owner}
+              onClick={() => toggleExpand("owner")}
+            >
+              <ExpandMoreIcon />
+            </ExpandButton>
+          </CardContent>
+          <Collapse in={expanded.owner}>
+            <Divider />
+            <CardContent>
+              <div className="container-fluid">
+                <div className="row g-3">
+                  <div className="col-md-4">
+                    <TextField
+                      type="date"
+                      label="Date"
+                      name="DATE"
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      value={form.DATE}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-8">
+                    <TextField
+                      label="Transaction Code"
+                      name="TRANSACTION_CODE"
+                      fullWidth
+                      value={form.TRANSACTION_CODE}
+                      onChange={handleChange}
+                      helperText="Leave blank to auto-generate"
+                    />
+                  </div>
 
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={2}>
-            {/* Row 1: DATE, TRANSACTION CODE (read-only) */}
-            <Grid item xs={12} sm={4}>
+                  <div className="col-md-3">
+                    <TextField
+                      label="First Name"
+                      name="FNAME"
+                      fullWidth
+                      value={form.FNAME}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <TextField
+                      label="Middle Name"
+                      name="MNAME"
+                      fullWidth
+                      value={form.MNAME}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <TextField
+                      label="Last Name"
+                      name="LNAME"
+                      fullWidth
+                      value={form.LNAME}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <TextField
+                      label="Ext."
+                      name="EXTNAME"
+                      fullWidth
+                      value={form.EXTNAME}
+                      onChange={handleChange}
+                    />
+                  </div>
+
+                  <div className="col-md-3">
+                    <Autocomplete
+                      disableClearable
+                      options={["MALE", "FEMALE"]}
+                      value={form.GENDER || ""}
+                      onChange={(e, v) => setForm((p) => ({ ...p, GENDER: v }))}
+                      renderInput={(params) => (
+                        <TextField {...params} label="Gender" fullWidth />
+                      )}
+                    />
+                  </div>
+
+                  <div className="col-md-5">
+                    <TextField
+                      label="Street"
+                      name="STREET"
+                      fullWidth
+                      value={form.STREET}
+                      onChange={handleChange}
+                    />
+                  </div>
+
+                  <div className="col-md-4">
+                    <Autocomplete
+                      disableClearable
+                      options={[
+                        "POBLACION",
+                        "BASAC",
+                        "CALANGO",
+                        "LUTOBAN",
+                        "MALONGCAY DIOT",
+                        "MALUAY",
+                        "MAYABON",
+                        "NABAGO",
+                        "NAJANDIG",
+                        "NASIG-ID",
+                      ]}
+                      value={form.BARANGAY || ""}
+                      onChange={(e, v) =>
+                        setForm((p) => ({ ...p, BARANGAY: v }))
+                      }
+                      renderInput={(params) => (
+                        <TextField {...params} label="Barangay" fullWidth />
+                      )}
+                    />
+                  </div>
+
+                  <div className="col-md-4">
+                    <TextField
+                      label="Municipality"
+                      name="MUNICIPALITY"
+                      fullWidth
+                      value={form.MUNICIPALITY}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <TextField
+                      label="Province"
+                      name="PROVINCE"
+                      fullWidth
+                      value={form.PROVINCE}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <TextField
+                      label="Cellphone"
+                      name="CELLPHONE"
+                      fullWidth
+                      value={form.CELLPHONE}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Collapse>
+        </StyledCard>
+
+        {/* ========== VEHICLE INFO ========== */}
+        <StyledCard>
+          <CardContent className="d-flex align-items-center">
+            <CarIcon color="primary" className="me-2" />
+            <Typography variant="h6" className="flex-grow-1">
+              Vehicle Information
+            </Typography>
+            <ExpandButton
+              expand={expanded.vehicle}
+              onClick={() => toggleExpand("vehicle")}
+            >
+              <ExpandMoreIcon />
+            </ExpandButton>
+          </CardContent>
+          <Collapse in={expanded.vehicle}>
+            <Divider />
+            <CardContent>
+              <div className="container-fluid">
+                <div className="row g-3">
+                  {[
+                    ["MCH_NO", "MCH No"],
+                    ["FRANCHISE_NO", "Franchise No"],
+                    ["MOTOR_NO", "Motor No"],
+                    ["CHASSIS_NO", "Chassis No"],
+                    ["PLATE", "Plate"],
+                    ["COLOR", "Color"],
+                    ["DRIVER", "Driver"],
+                  ].map(([field, label]) => (
+                    <div className="col-md-3" key={field}>
+                      <TextField
+                        label={label}
+                        name={field}
+                        fullWidth
+                        value={form[field]}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  ))}
+
+                  <div className="col-md-3">
+                    <TextField
+                      select
+                      label="Make"
+                      name="MAKE"
+                      fullWidth
+                      value={form.MAKE}
+                      onChange={handleChange}
+                    >
+                      <MenuItem value="">Select</MenuItem>
+                      {makes.map((m) => (
+                        <MenuItem key={m} value={m}>
+                          {m}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Collapse>
+        </StyledCard>
+
+        {/* ========== PAYMENT & CEDULA ========== */}
+        <StyledCard>
+          <CardContent className="d-flex align-items-center">
+            <PaymentIcon color="primary" className="me-2" />
+            <Typography variant="h6" className="flex-grow-1">
+              Payment & Cedula
+            </Typography>
+            <ExpandButton
+              expand={expanded.payment}
+              onClick={() => toggleExpand("payment")}
+            >
+              <ExpandMoreIcon />
+            </ExpandButton>
+          </CardContent>
+          <Collapse in={expanded.payment}>
+            <Divider />
+            <CardContent>
+              <div className="container-fluid">
+                <div className="row g-3">
+                  <div className="col-md-3">
+                    <TextField
+                      label="O.R. Payment"
+                      name="ORIGINAL_RECEIPT_PAYMENT"
+                      fullWidth
+                      value={form.ORIGINAL_RECEIPT_PAYMENT}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <TextField
+                      type="date"
+                      label="Payment Date"
+                      name="PAYMENT_DATE"
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                      value={form.PAYMENT_DATE}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <TextField
+                      label="Amount"
+                      name="AMOUNT"
+                      fullWidth
+                      value={form.AMOUNT}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <TextField
+                      label="Cedula No"
+                      name="CEDULA_NO"
+                      fullWidth
+                      value={form.CEDULA_NO}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <TextField
+                      type="date"
+                      label="Cedula Date"
+                      name="CEDULA_DATE"
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                      value={form.CEDULA_DATE}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Collapse>
+        </StyledCard>
+
+        {/* ========== RENEWAL & LICENSE ========== */}
+        <StyledCard>
+          <CardContent className="d-flex align-items-center">
+            <RenewIcon color="primary" className="me-2" />
+            <Typography variant="h6" className="flex-grow-1">
+              Renewal & License
+            </Typography>
+            <ExpandButton
+              expand={expanded.renewal}
+              onClick={() => toggleExpand("renewal")}
+            >
+              <ExpandMoreIcon />
+            </ExpandButton>
+          </CardContent>
+          <Collapse in={expanded.renewal}>
+            <Divider />
+            <CardContent>
+              <div className="container-fluid">
+                <div className="row g-3">
+                  <div className="col-md-4">
+                    <TextField
+                      type="date"
+                      label="Renew From"
+                      name="RENEW_FROM"
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                      value={form.RENEW_FROM}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <TextField
+                      type="date"
+                      label="Renew To"
+                      name="RENEW_TO"
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                      value={form.RENEW_TO}
+                      disabled
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <TextField
+                      label="Status"
+                      name="STATUS"
+                      fullWidth
+                      value={form.STATUS}
+                      disabled
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <TextField
+                      label="Mayor’s Permit No"
+                      name="MAYORS_PERMIT_NO"
+                      fullWidth
+                      value={form.MAYORS_PERMIT_NO}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <TextField
+                      label="License No"
+                      name="LICENSE_NO"
+                      fullWidth
+                      value={form.LICENSE_NO}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <TextField
+                      type="date"
+                      label="License Valid Date"
+                      name="LICENSE_VALID_DATE"
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                      value={form.LICENSE_VALID_DATE}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Collapse>
+        </StyledCard>
+
+        {/* ========== COMMENTS & ACTIONS ========== */}
+        <StyledCard>
+          <CardContent className="d-flex align-items-center">
+            <CommentIcon color="primary" className="me-2" />
+            <Typography variant="h6" className="flex-grow-1">
+              Remarks / Comments
+            </Typography>
+            <ExpandButton
+              expand={expanded.comment}
+              onClick={() => toggleExpand("comment")}
+            >
+              <ExpandMoreIcon />
+            </ExpandButton>
+          </CardContent>
+          <Collapse in={expanded.comment}>
+            <Divider />
+            <CardContent>
               <TextField
+                label="Remarks / Comment"
+                name="COMMENT"
                 fullWidth
-                type="date"
-                label="Date"
-                name="DATE"
-                InputLabelProps={{ shrink: true }}
-                value={form.DATE}
+                multiline
+                rows={3}
+                value={form.COMMENT}
                 onChange={handleChange}
               />
-            </Grid>
-            <Grid item xs={12} sm={8}>
-              <TextField
-                fullWidth
-                label="Transaction Code (auto)"
-                name="TRANSACTION_CODE"
-                value={form.TRANSACTION_CODE}
-                onChange={handleChange}
-                helperText="Leave blank to auto-generate"
-              />
-            </Grid>
-
-            {/* Name group */}
-            <Grid item xs={12} sm={3}>
-              <TextField label="First Name" name="FNAME" value={form.FNAME} onChange={handleChange} fullWidth />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField label="Middle Name" name="MNAME" value={form.MNAME} onChange={handleChange} fullWidth />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField label="Last Name" name="LNAME" value={form.LNAME} onChange={handleChange} fullWidth />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField label="Extension" name="EXTNAME" value={form.EXTNAME} onChange={handleChange} fullWidth />
-            </Grid>
-
-            {/* Contact & address */}
-            <Grid item xs={12} sm={3}>
-              <TextField select fullWidth label="Gender" name="GENDER" value={form.GENDER} onChange={handleChange}>
-                <MenuItem value="">Select</MenuItem>
-                <MenuItem value="MALE">Male</MenuItem>
-                <MenuItem value="FEMALE">Female</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={5}>
-              <TextField fullWidth label="Street" name="STREET" value={form.STREET} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField select fullWidth label="Barangay" name="BARANGAY" value={form.BARANGAY} onChange={handleChange}>
-                <MenuItem value="">Select Barangay</MenuItem>
-                {barangays.map((b) => (
-                  <MenuItem key={b} value={b}>
-                    {b}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="Municipality" name="MUNICIPALITY" value={form.MUNICIPALITY} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="Province" name="PROVINCE" value={form.PROVINCE} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="Cellphone" name="CELLPHONE" value={form.CELLPHONE} onChange={handleChange} />
-            </Grid>
-
-            {/* Vehicle details (multiple fields) */}
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="MCH No" name="MCH_NO" value={form.MCH_NO} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Franchise No" name="FRANCHISE_NO" value={form.FRANCHISE_NO} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField select fullWidth label="Make" name="MAKE" value={form.MAKE} onChange={handleChange}>
-                <MenuItem value="">Select</MenuItem>
-                {makes.map((m) => (
-                  <MenuItem key={m} value={m}>
-                    {m}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Motor No" name="MOTOR_NO" value={form.MOTOR_NO} onChange={handleChange} />
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Chassis No" name="CHASSIS_NO" value={form.CHASSIS_NO} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Plate" name="PLATE" value={form.PLATE} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Color" name="COLOR" value={form.COLOR} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Driver" name="DRIVER" value={form.DRIVER} onChange={handleChange} />
-            </Grid>
-
-            {/* LTO fields */}
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="LTO Original Receipt" name="LTO_ORIGINAL_RECEIPT" value={form.LTO_ORIGINAL_RECEIPT} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="LTO Certificate Registration" name="LTO_CERTIFICATE_REGISTRATION" value={form.LTO_CERTIFICATE_REGISTRATION} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="LTO MV File No" name="LTO_MV_FILE_NO" value={form.LTO_MV_FILE_NO} onChange={handleChange} />
-            </Grid>
-
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="Original Receipt Payment" name="ORIGINAL_RECEIPT_PAYMENT" value={form.ORIGINAL_RECEIPT_PAYMENT} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="date" label="Payment Date" name="PAYMENT_DATE" InputLabelProps={{ shrink: true }} value={form.PAYMENT_DATE} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="Amount" name="AMOUNT" value={form.AMOUNT} onChange={handleChange} />
-            </Grid>
-
-            {/* Renewal and license */}
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="date" label="Renew From" name="RENEW_FROM" InputLabelProps={{ shrink: true }} value={form.RENEW_FROM} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="date" label="Renew To (auto)" name="RENEW_TO" InputLabelProps={{ shrink: true }} value={form.RENEW_TO} onChange={handleChange} disabled />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="Status" name="STATUS" value={form.STATUS} onChange={handleChange} disabled />
-            </Grid>
-
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="Mayor's Permit No" name="MAYORS_PERMIT_NO" value={form.MAYORS_PERMIT_NO} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="License No" name="LICENSE_NO" value={form.LICENSE_NO} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="date" label="License Valid Date" name="LICENSE_VALID_DATE" InputLabelProps={{ shrink: true }} value={form.LICENSE_VALID_DATE} onChange={handleChange} />
-            </Grid>
-
-            {/* Comment */}
-            <Grid item xs={12}>
-              <TextField fullWidth multiline rows={3} label="Comment" name="COMMENT" value={form.COMMENT} onChange={handleChange} />
-            </Grid>
-
-            {/* Submit */}
-            <Grid item xs={12}>
-              <Button type="submit" variant="contained" color="primary" fullWidth>
-                💾 Save Record
-              </Button>
-            </Grid>
-          </Grid>
-        </form>
-      </Paper>
-
-      {/* Existing records */}
-      <Paper elevation={2} sx={{ mt: 4, p: 2 }}>
-        <Typography variant="h6">📋 Existing Records</Typography>
-        <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse", marginTop: "10px" }}>
-          <thead style={{ backgroundColor: "#1976d2", color: "white" }}>
-            <tr>
-              <th>ID</th>
-              <th>TRANSACTION CODE</th>
-              <th>NAME</th>
-              <th>BARANGAY</th>
-              <th>MAKE</th>
-              <th>RENEW FROM</th>
-              <th>RENEW TO</th>
-              <th>STATUS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {records.map((r) => (
-              <tr key={r.ID}>
-                <td>{r.ID}</td>
-                <td>{r.TRANSACTION_CODE}</td>
-                <td>{r.FNAME} {r.MNAME} {r.LNAME}</td>
-                <td>{r.BARANGAY}</td>
-                <td>{r.MAKE}</td>
-                <td>{r.RENEW_FROM}</td>
-                <td>{r.RENEW_TO}</td>
-                <td>{r.STATUS}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Paper>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 2,
+                  mt: 3,
+                }}
+              >
+                <Button variant="outlined" color="secondary" onClick={resetForm}>
+                  Reset
+                </Button>
+                <Button type="submit" variant="contained" color="primary">
+                  {editId ? "Update Record" : "Save Record"}
+                </Button>
+              </Box>
+            </CardContent>
+          </Collapse>
+        </StyledCard>
+      </form>
     </Box>
   );
 }
