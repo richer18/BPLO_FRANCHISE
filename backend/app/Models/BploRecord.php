@@ -27,8 +27,8 @@ class BploRecord extends Model
         'MUNICIPALITY',
         'PROVINCE',
         'CELLPHONE',
-        'CEDULA_NO',          // ✅ Added
-        'CEDULA_DATE',        // ✅ Added
+        'CEDULA_NO',         
+        'CEDULA_DATE',  
         'MCH_NO',
         'FRANCHISE_NO',
         'MAKE',

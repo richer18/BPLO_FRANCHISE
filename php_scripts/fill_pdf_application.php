@@ -1,12 +1,24 @@
 <?php
 require __DIR__ . '/../backend/vendor/autoload.php';
-use setasign\Fpdi\Fpdi;
+use PhpOffice\PhpWord\TemplateProcessor;
 
-// --- Database connection (same as your .env in Laravel) ---
+// --- Helper function for ordinal suffix ---
+function getOrdinalSuffix($number) {
+    if (!in_array(($number % 100), [11, 12, 13])) {
+        switch ($number % 10) {
+            case 1: return "ST";
+            case 2: return "ND";
+            case 3: return "RD";
+        }
+    }
+    return "TH";
+}
+
+// --- Database connection ---
 $servername = "127.0.0.1";
 $username = "root";
 $password = "";
-$dbname = "business_permit_license"; // ⚠️ change to your actual DB name
+$dbname = "business_permit_license";
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) {
@@ -22,52 +34,28 @@ if ($id <= 0) {
 // --- Fetch record from database ---
 $sql = "SELECT * FROM bplo_records WHERE ID = $id";
 $result = $conn->query($sql);
-
 if ($result->num_rows == 0) {
     die("Record not found.");
 }
 
 $data = $result->fetch_assoc();
 
-// --- FPDI setup ---
-function getOrdinalSuffix($number) {
-    if (!in_array(($number % 100), [11, 12, 13])) {
-        switch ($number % 10) {
-            case 1: return "ST";
-            case 2: return "ND";
-            case 3: return "RD";
-        }
-    }
-    return "TH";
-}
-
-$pdf = new Fpdi();
-$pdf->AddPage();
-$pdf->setSourceFile(__DIR__ . '/../template/APPLICATION_TEMPLATE_v3.pdf');
-$tplIdx = $pdf->importPage(1);
-$pdf->useTemplate($tplIdx, 0, 0, 215.9, 330.2); // long bond size
-
-$pdf->SetFont('Times', '', 12);
-
-// --- Assign database values ---
-$operator_name   = strtoupper(trim($data['FNAME'] . " " . $data['MNAME'] . " " . $data['LNAME']));
-$applicant_1     = $operator_name;
-$applicant_2     = $operator_name;
-$applicant_affiant = $operator_name;
-$franchise_no    = $data['FRANCHISE_NO'];
-$mch_no          = $data['MCH_NO'];
-$barangay        = strtoupper($data['BARANGAY']);
-$make            = strtoupper($data['MAKE']);
-$motor_no        = strtoupper($data['MOTOR_NO']);
-$chassis_no      = strtoupper($data['CHASSIS_NO']);
-$plate_no        = strtoupper($data['PLATE']);
-$date_registered = date("F j, Y", strtotime($data['DATE'] ?? date("Y-m-d")));
-$cedula_no       = strtoupper($data['CEDULA_NO']);
-$municipality    = strtoupper($data['MUNICIPALITY']);
-$cedula_date     = date("F j, Y", strtotime($data['CEDULA_DATE'] ?? date("Y-m-d")));
+// --- Assign variables ---
+$operator_name = strtoupper(trim($data['FNAME'] . " " . $data['MNAME'] . " " . $data['LNAME']));
+$franchise_no  = $data['FRANCHISE_NO'];
+$mch_no        = $data['MCH_NO'];
+$barangay      = strtoupper($data['BARANGAY']);
+$make          = strtoupper($data['MAKE']);
+$motor_no      = strtoupper($data['MOTOR_NO']);
+$chassis_no    = strtoupper($data['CHASSIS_NO']);
+$plate_no      = strtoupper($data['PLATE']);
+$date_registered = date("F j, Y", strtotime($data['PAYMENT_DATE'] ?? date("Y-m-d")));
+$cedula_no     = strtoupper($data['CEDULA_NO']);
+$municipality  = strtoupper($data['MUNICIPALITY']);
+$cedula_date   = date("F j, Y", strtotime($data['CEDULA_DATE'] ?? date("Y-m-d")));
 
 // --- Process date ---
-preg_match('/^([A-Z]+ \d{1,2}), (\d{4})$/', $cedula_date, $matches);
+preg_match('/^([A-Z]+ \d{1,2}), (\d{4})$/', strtoupper($cedula_date), $matches);
 $month_day = $matches[1] ?? "";
 $year = $matches[2] ?? "";
 
@@ -76,67 +64,53 @@ $day = $date->format('j');
 $month = strtoupper($date->format('F'));
 $suffix = getOrdinalSuffix($day);
 
-// --- Write data to PDF ---
-$pdf->SetXY(29, 55);
-$pdf->Write(10, $operator_name);
+// --- Load Word template ---
+$templatePath = __DIR__ . '/../template/APPLICATION_TEMPLATE.docx';
+$template = new TemplateProcessor($templatePath);
 
-$pdf->SetXY(148, 56);
-$pdf->Write(7, $franchise_no);
+// --- Replace placeholders in the template ---
+$template->setValue('operator_name', $operator_name);
+$template->setValue('franchise_no', $franchise_no);
+$template->setValue('mch_no', $mch_no);
+$template->setValue('barangay', $barangay);
+$template->setValue('make', $make);
+$template->setValue('motor_no', $motor_no);
+$template->setValue('chassis_no', $chassis_no);
+$template->setValue('plate_no', $plate_no);
+$template->setValue('date_registered', $date_registered);
+$template->setValue('cedula_no', $cedula_no);
+$template->setValue('municipality', $municipality);
+$template->setValue('cedula_date', $cedula_date);
 
-$pdf->SetXY(148, 60);
-$pdf->Write(7, $mch_no);
+// --- New date placeholders ---
+$template->setValue('day', $day);
+$template->setValue('suffix', $suffix);
+$template->setValue('month', $month);
+$template->setValue('month_day', $month_day);
+$template->setValue('year', $year);
 
-$pdf->SetXY(169, 92);
-$pdf->Write(10, $barangay);
+// --- Save as new Word file ---
+// 🧩 Generate dynamic output filename
+$clean_name = preg_replace('/[^A-Za-z0-9_\-]/', '_', $operator_name);
+$timestamp = date("Ymd_His");
+$outputDir = __DIR__ . "/$clean_name/Application_$id/$mch_no";
 
-$pdf->SetXY(25, 115);
-$pdf->Write(10, $make);
+// Ensure folder exists
+if (!is_dir($outputDir)) {
+    mkdir($outputDir, 0777, true);
+}
 
-$pdf->SetXY(68, 115);
-$pdf->Write(10, $motor_no);
+// ✅ Dynamic filename pattern
+$outputFile = "$outputDir/{$clean_name}_Application_{$mch_no}_{$timestamp}.docx";
 
-$pdf->SetXY(120, 115);
-$pdf->Write(10, $chassis_no);
+// 📝 Save Word file
+$template->saveAs($outputFile);
 
-$pdf->SetXY(170, 115);
-$pdf->Write(10, $plate_no);
-
-$pdf->SetXY(20, 153);
-$pdf->Write(12, $date_registered);
-
-$pdf->SetXY(157, 167);
-$pdf->Write(12, $applicant_1);
-
-$pdf->SetXY(25, 190);
-$pdf->Write(12, $applicant_2);
-
-$pdf->SetXY(157, 212);
-$pdf->Write(12, $applicant_affiant);
-
-// Day + suffix
-$pdf->SetXY(90, 232);
-$pdf->Write(12, $day);
-$pdf->SetFont('Times', '', 8);
-$pdf->SetXY($pdf->GetX() - 0.01, 234);
-$pdf->Write(5, $suffix);
-
-$pdf->SetFont('Times', 'B', 12);
-$pdf->SetXY(125, 232);
-$pdf->Write(12, $month);
-
-$pdf->SetXY(150, 237);
-$pdf->Write(12, $cedula_no);
-
-$pdf->SetXY(15, 242);
-$pdf->Write(11, $municipality);
-
-$pdf->SetXY(75, 242);
-$pdf->Write(11, $month_day);
-
-$pdf->SetXY(113, 242);
-$pdf->Write(11, $year);
-
-// Output to browser
-$pdf->Output('I', 'Filled_Application.pdf');
-$conn->close();
+// ✅ Optional: force download
+header("Content-Description: File Transfer");
+header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+header('Content-Disposition: attachment; filename="' . basename($outputFile) . '"');
+header('Content-Length: ' . filesize($outputFile));
+readfile($outputFile);
+exit;
 ?>

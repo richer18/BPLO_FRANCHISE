@@ -1,13 +1,12 @@
 <?php
 require __DIR__ . '/../backend/vendor/autoload.php';
-use setasign\Fpdi\Fpdi;
+use PhpOffice\PhpWord\TemplateProcessor;
 
-
-// --- Database connection (same as your .env in Laravel) ---
+// --- Database connection ---
 $servername = "127.0.0.1";
 $username = "root";
 $password = "";
-$dbname = "business_permit_license"; // ⚠️ change to your actual DB name
+$dbname = "business_permit_license";
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) {
@@ -30,7 +29,7 @@ if ($result->num_rows == 0) {
 
 $data = $result->fetch_assoc();
 
-// --- FPDI setup ---
+// --- Helper for suffix ---
 function getOrdinalSuffix($number) {
     if (!in_array(($number % 100), [11, 12, 13])) {
         switch ($number % 10) {
@@ -42,16 +41,7 @@ function getOrdinalSuffix($number) {
     return "TH";
 }
 
-$pdf = new Fpdi();
-$pdf->AddPage();
-$pdf->setSourceFile(__DIR__ . '/../template/PNP_MOTOR_VEHICLE_CLEARANCE_CERTIFICATION_CLASS_B_TEMPLATE_V3.pdf');
-$tplIdx = $pdf->importPage(1);
-$pdf->useTemplate($tplIdx, 0, 0, 215.9, 330.2); // long bond size
-
-$pdf->SetFont('Times', '', 12);
-
-
-// --- Hardcoded values ---
+// --- Data assignment ---
 $operator_name   = strtoupper(trim($data['FNAME'] . " " . $data['MNAME'] . " " . $data['LNAME']));
 $barangay        = strtoupper($data['BARANGAY']);
 $make            = strtoupper($data['MAKE']);
@@ -59,60 +49,56 @@ $motor_no        = strtoupper($data['MOTOR_NO']);
 $chassis_no      = strtoupper($data['CHASSIS_NO']);
 $plate_no        = strtoupper($data['PLATE']);
 $color           = strtoupper($data['COLOR']);
-$date_registered = date("F j, Y", strtotime($data['DATE'] ?? date("Y-m-d")));
-$date_pay = $date_registered;
+$date_registered = date("F j, Y", strtotime($data['PAYMENT_DATE'] ?? date("Y-m-d")));
 $original_receipt = strtoupper($data['ORIGINAL_RECEIPT_PAYMENT']);
-$lto_original_receipt =strtoupper($data['LTO_ORIGINAL_RECEIPT']);
+$lto_original_receipt = strtoupper($data['LTO_ORIGINAL_RECEIPT']);
 $lto_certificate_registration = strtoupper($data['LTO_CERTIFICATE_REGISTRATION']);
 $mv_file_no = strtoupper($data['LTO_MV_FILE_NO']);
-$amount =strtoupper($data['AMOUNT']);
+$amount = strtoupper($data['AMOUNT']);
+$mch_no = strtoupper($data['MCH_NO']);
 
+// --- Word Template Path ---
+$templatePath = __DIR__ . '/../template/PNP_MOTOR_VEHICLE_CLEARANCE_CERTIFICATION_CLASS_B_TEMPLATE.docx';
+if (!file_exists($templatePath)) {
+    die("Template file not found: $templatePath");
+}
 
-// --- Write text on template ---
-$pdf->SetXY(90, 111);
-$pdf->Write(10, $operator_name);
+$template = new TemplateProcessor($templatePath);
 
+// --- Replace placeholders ---
+// 📌 Make sure your Word template has placeholders like:
+// ${operator_name}, ${barangay}, ${make}, ${motor_no}, etc.
+$template->setValue('operator_name', $operator_name);
+$template->setValue('barangay', $barangay);
+$template->setValue('make', $make);
+$template->setValue('motor_no', $motor_no);
+$template->setValue('chassis_no', $chassis_no);
+$template->setValue('plate_no', $plate_no);
+$template->setValue('color', $color);
+$template->setValue('date_registered', $date_registered);
+$template->setValue('original_receipt', $original_receipt);
+$template->setValue('lto_original_receipt', $lto_original_receipt);
+$template->setValue('lto_certificate_registration', $lto_certificate_registration);
+$template->setValue('mv_file_no', $mv_file_no);
+$template->setValue('amount', $amount);
 
-$pdf->SetXY(67, 115);
-$pdf->Write(11, $barangay);
+// --- Output directory and filename ---
+$timestamp = date("Y-m-d_His");
+$baseDir = __DIR__ . "/$operator_name/_PNP_CLEARANCE_$id/$mch_no";
+if (!is_dir($baseDir)) {
+    mkdir($baseDir, 0777, true);
+}
 
-$pdf->SetXY(73, 93);
-$pdf->Write(10, $make);
+$outputFile = "$baseDir/{$operator_name}_PNP_Clearance_{$mch_no}_{$timestamp}.docx";
 
-$pdf->SetXY(73, 98);
-$pdf->Write(10, $motor_no);
+// --- Save generated file ---
+$template->saveAs($outputFile);
 
-$pdf->SetXY(75, 121);
-$pdf->Write(9, $chassis_no);
-
-$pdf->SetXY(73, 103);
-$pdf->Write(9, $plate_no);
-
-$pdf->SetXY(136, 61);
-$pdf->Write(11, $date_registered);
-
-$pdf->SetXY(73, 107);
-$pdf->Write(10, $color);
-
-
-$pdf->SetXY(36, 133);
-$pdf->Write(12, $lto_original_receipt);
-
-$pdf->SetXY(85, 133);
-$pdf->Write(12, $lto_certificate_registration);
-
-$pdf->SetXY(155, 133);
-$pdf->Write(12, $mv_file_no);
-
-$pdf->SetXY(40, 246);
-$pdf->Write(12, $original_receipt);
-
-$pdf->SetXY(44, 251);
-$pdf->Write(11, $date_pay);
-
-$pdf->SetXY(55, 260);
-$pdf->Write(11, $amount);
-
-// Output PDF
-$pdf->Output('I', 'Filled_Application.pdf');
+// --- Force download ---
+header("Content-Description: File Transfer");
+header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+header('Content-Disposition: attachment; filename="' . basename($outputFile) . '"');
+header('Content-Length: ' . filesize($outputFile));
+readfile($outputFile);
+exit;
 ?>

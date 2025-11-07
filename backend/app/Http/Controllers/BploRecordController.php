@@ -137,4 +137,18 @@ class BploRecordController extends Controller
             'message' => 'Record deleted successfully!'
         ]);
     }
+
+   public function registeredMch()
+{
+    // ✅ Fetch all existing MCH numbers
+    $takenMch = \App\Models\BploRecord::whereNotNull('MCH_NO')
+        ->where('MCH_NO', '!=', '')
+        ->pluck('MCH_NO')
+        ->map(fn($mch) => str_pad(ltrim($mch, '0'), 3, '0', STR_PAD_LEFT))
+        ->toArray();
+
+    // ✅ Always return an array — even if no record exists
+    return response()->json($takenMch);
+}
+
 }

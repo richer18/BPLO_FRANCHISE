@@ -24,7 +24,7 @@ import {
   TableRow,
   TextField,
   Tooltip,
-  Typography,
+  Typography,Stack  
 } from "@mui/material";
 
 import TablePagination from "@mui/material/TablePagination";
@@ -52,37 +52,179 @@ const formatDate = (dateString) => {
 };
 
 function FrontPage() {
-  const [records, setRecords] = useState([]);
+   const [records, setRecords] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Dialog state
   const [openForm, setOpenForm] = useState(false);
-  const handleOpenForm = () => setOpenForm(true);
-  const handleCloseForm = () => setOpenForm(false);
+  const [editData, setEditData] = useState(null); // ✅ NEW STATE
 
   // Menu state for print
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedRecord, setSelectedRecord] = useState(null);
+  
+  //FILTERS
+  const [search, setSearch] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(null);
+  const [filteredRecords, setFilteredRecords] = useState([]);
+
+  //TOTAL
+  const [allTotal, setAllTotal] = useState(0);
+  const [registered, setRegistered] = useState(0);
+  const [renew, setRenew] = useState(0);
+  const [expiry, setExpiry] = useState(0);
+  const [expired, setExpired] = useState(0);
+
+
+
+
+// Fetch overall total
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        const response = await axiosInstance.get("TotalRevenue");
+
+        // ✅ Laravel returns: { overall_total: 12345.67 }
+        const totalRevenue = parseFloat(
+          response.data?.overall_total || 0
+        );
+
+        setAllTotal(totalRevenue);
+      } catch (error) {
+        console.error("❌ Error fetching total general fund:", error);
+      }
+    };
+
+    fetchAllData();
+  }, []);
+
+
+  // Fetch overall registered
+useEffect(() => {
+  const fetchAllData = async () => {
+    try {
+      const response = await axiosInstance.get("TotalRegistered");
+
+      // Laravel returns: { overall_registered: 155 }
+      const totalRegistered = parseInt(response.data?.overall_registered || 0);
+
+      setRegistered(totalRegistered);
+    } catch (error) {
+      console.error("❌ Error fetching total registered:", error);
+    }
+  };
+
+  fetchAllData();
+}, []);
+
+//Fetch Total Renewed
+useEffect(() => {
+  const fetchRenewData = async () => {
+    try {
+      const response = await axiosInstance.get("TotalRenew");
+
+      // Laravel returns: { overall_renew: 123, year: 2025 }
+      const totalRenew = parseInt(response.data?.overall_renew || 0);
+
+      setRenew(totalRenew);
+    } catch (error) {
+      console.error("❌ Error fetching total renew:", error);
+    }
+  };
+
+  fetchRenewData();
+}, []);
+
+
+//Total Expiry
+useEffect(() => {
+  const fetchExpiryData = async () => {
+    try {
+      const response = await axiosInstance.get("TotalExpiry");
+      const totalExpiry = parseInt(response.data?.overall_expiry || 0);
+      setExpiry(totalExpiry);
+    } catch (error) {
+      console.error("❌ Error fetching total expiry:", error);
+    }
+  };
+
+  fetchExpiryData();
+}, []);
+
+
+//Total Expired
+useEffect(() => {
+  const fetchExpiredData = async () => {
+    try {
+      const response = await axiosInstance.get("TotalExpired");
+      const totalExpired = parseInt(response.data?.overall_expired || 0);
+      setExpired(totalExpired);
+    } catch (error) {
+      console.error("❌ Error fetching total expired:", error);
+    }
+  };
+
+  fetchExpiredData();
+}, []);
+
+
+  const handleOpenForm = () => setOpenForm(true);
 
   useEffect(() => {
     fetchRecords();
   }, []);
 
   const fetchRecords = async () => {
-    try {
-      const response = await axiosInstance.get("/bplo");
-      setRecords(response.data);
-    } catch (error) {
-      console.error("Error fetching records:", error);
-    }
-  };
+  try {
+    const response = await axiosInstance.get("/bplo");
+    setRecords(response.data);
+    setFilteredRecords(response.data); // 👈 default display
+  } catch (error) {
+    console.error("Error fetching records:", error);
+  }
+};
 
+const applyFilters = () => {
+  let filtered = [...records];
+
+  // 🔍 Filter by name or receipt
+  if (search.trim() !== "") {
+    const lowerSearch = search.toLowerCase();
+    filtered = filtered.filter(
+      (r) =>
+        (r.FNAME && r.FNAME.toLowerCase().includes(lowerSearch)) ||
+        (r.LNAME && r.LNAME.toLowerCase().includes(lowerSearch)) ||
+        (r.RECEIPT_NO && r.RECEIPT_NO.toLowerCase().includes(lowerSearch)) ||
+        (r.TRANSACTION_CODE && r.TRANSACTION_CODE.toLowerCase().includes(lowerSearch))
+    );
+  }
+
+  // 📅 Filter by month/year
+  filtered = filtered.filter((r) => {
+    if (!r.RENEW_FROM) return false;
+    const date = new Date(r.RENEW_FROM);
+    const month = date.getMonth(); // 0–11
+    const year = date.getFullYear();
+
+    let valid = true;
+    if (selectedMonth) valid = valid && month === selectedMonth.value;
+    if (selectedYear) valid = valid && year === selectedYear.value;
+
+    return valid;
+  });
+
+  setFilteredRecords(filtered);
+  setPage(0); // reset pagination
+};
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
+
+  
 
   // Menu handlers
   const handleMenuOpen = (event, record) => {
@@ -121,6 +263,36 @@ function FrontPage() {
     window.open(url, "_blank");
   };
 
+  const handleView = (record) => {
+    console.log("Viewing record:", record);
+  };
+
+  // ✅ EDIT BUTTON FUNCTION
+  const handleUpdate = (record) => {
+    setEditData(record);     // Pass selected record
+    setOpenForm(true);       // Open dialog
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this record?")) {
+      try {
+        await axiosInstance.delete(`/bplo/${id}`);
+        alert("✅ Record deleted successfully!");
+        fetchRecords();
+      } catch (error) {
+        console.error("Delete failed:", error);
+        alert("❌ Failed to delete record.");
+      }
+    }
+  };
+
+  // ✅ When dialog closes, reset editData
+  const handleCloseForm = () => {
+    setOpenForm(false);
+    setEditData(null);
+    fetchRecords(); // refresh list after save/update
+  };
+
   return (
     <Box
       sx={{
@@ -133,49 +305,75 @@ function FrontPage() {
         {/* Search & Filters Row */}
         <Box display="flex" alignItems="center" gap={3} sx={{ py: 2 }}>
           <Box display="flex" alignItems="center" gap={2} flexGrow={1}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              label="Search Records"
-              placeholder="Name or Receipt Number"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">{/* icon here */}</InputAdornment>
-                ),
-                sx: { borderRadius: "8px" },
-              }}
-            />
+           <TextField
+      fullWidth
+      variant="outlined"
+      label="Search Records"
+      placeholder="Name or Receipt Number"
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">{/* optional icon */}</InputAdornment>
+        ),
+        sx: { borderRadius: "8px" },
+      }}
+    />
             <Box display="flex" gap={2}>
               <Autocomplete
-                disablePortal
-                sx={{ width: 180 }}
-                renderInput={(params) => (
-                  <TextField {...params} label="Select Month" variant="outlined" />
-                )}
-              />
+        disablePortal
+        options={[
+          { label: "January", value: 0 },
+          { label: "February", value: 1 },
+          { label: "March", value: 2 },
+          { label: "April", value: 3 },
+          { label: "May", value: 4 },
+          { label: "June", value: 5 },
+          { label: "July", value: 6 },
+          { label: "August", value: 7 },
+          { label: "September", value: 8 },
+          { label: "October", value: 9 },
+          { label: "November", value: 10 },
+          { label: "December", value: 11 },
+        ]}
+        value={selectedMonth}
+        onChange={(e, newVal) => setSelectedMonth(newVal)}
+        sx={{ width: 180 }}
+        renderInput={(params) => (
+          <TextField {...params} label="Select Month" variant="outlined" />
+        )}
+      />
 
-              <Autocomplete
-                disablePortal
-                sx={{ width: 150 }}
-                renderInput={(params) => (
-                  <TextField {...params} label="Select Year" variant="outlined" />
-                )}
-              />
+      <Autocomplete
+        disablePortal
+        options={Array.from({ length: 6 }, (_, i) => {
+          const year = new Date().getFullYear() - i;
+          return { label: `${year}`, value: year };
+        })}
+        value={selectedYear}
+        onChange={(e, newVal) => setSelectedYear(newVal)}
+        sx={{ width: 150 }}
+        renderInput={(params) => (
+          <TextField {...params} label="Select Year" variant="outlined" />
+        )}
+      />
+
 
               <Button
-                variant="contained"
-                color="primary"
-                sx={{
-                  px: 4,
-                  height: "56px",
-                  color: "white",
-                  borderRadius: "8px",
-                  boxShadow: "none",
-                  "&:hover": { boxShadow: "0px 3px 6px rgba(0, 0, 0, 0.1)" },
-                }}
-              >
-                Apply Filters
-              </Button>
+        variant="contained"
+        color="primary"
+        sx={{
+          px: 4,
+          height: "56px",
+          color: "white",
+          borderRadius: "8px",
+          boxShadow: "none",
+          "&:hover": { boxShadow: "0px 3px 6px rgba(0, 0, 0, 0.1)" },
+        }}
+        onClick={applyFilters}
+      >
+        Apply Filters
+      </Button>
             </Box>
           </Box>
         </Box>
@@ -253,60 +451,67 @@ function FrontPage() {
         </Box>
 
         {/* Summary Cards */}
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          gap={3}
-          sx={{ mt: 4, flexDirection: { xs: "column", sm: "row" } }}
-        >
-          {[
-            {
-              text: "Total Revenue",
-              icon: <AccountBalanceIcon />,
-              gradient: "linear-gradient(135deg, #1976d2, #63a4ff)",
-            },
-            {
-              text: "Total Registered",
-              icon: <BusinessCenterIcon />,
-              gradient: "linear-gradient(135deg, #2e7d32, #66bb6a)",
-            },
-            {
-              text: "Total Renew",
-              icon: <GavelIcon />,
-              gradient: "linear-gradient(135deg, #ed6c02, #ffb74d)",
-            },
-            {
-              text: "Total Expiry",
-              icon: <StorefrontIcon />,
-              gradient: "linear-gradient(135deg, #6a1b9a, #ab47bc)",
-            },
-            {
-              text: "Total Expired",
-              icon: <ReceiptLongIcon />,
-              gradient: "linear-gradient(135deg, #00838f, #4dd0e1)",
-            },
-          ].map(({ text, icon, gradient }) => (
-            <Card
-              key={text}
-              sx={{
-                flex: 1,
-                p: 3,
-                borderRadius: "16px",
-                background: gradient,
-                color: "white",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-              }}
-            >
-              <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                <Box>
-                  <Typography variant="subtitle2">{text}</Typography>
-                  <Typography variant="h5">₱0.00</Typography>
-                </Box>
-                <Box sx={{ opacity: 0.2 }}>{icon}</Box>
-              </Box>
-            </Card>
-          ))}
+<Box
+  display="flex"
+  justifyContent="space-between"
+  gap={3}
+  sx={{ mt: 4, flexDirection: { xs: "column", sm: "row" } }}
+>
+  {[
+    {
+      value: allTotal,
+      text: "Total Revenue",
+      icon: <AccountBalanceIcon />,
+      gradient: "linear-gradient(135deg, #1976d2, #63a4ff)",
+    },
+    {
+      value: registered,
+      text: "Total Registered",
+      icon: <BusinessCenterIcon />,
+      gradient: "linear-gradient(135deg, #2e7d32, #66bb6a)",
+    },
+    {
+      value: renew,
+      text: "Total Renew",
+      icon: <GavelIcon />,
+      gradient: "linear-gradient(135deg, #ed6c02, #ffb74d)",
+    },
+    {
+      value: expiry,
+      text: "Total Expiry",
+      icon: <StorefrontIcon />,
+      gradient: "linear-gradient(135deg, #6a1b9a, #ab47bc)",
+    },
+    {
+      value: expired,
+      text: "Total Expired",
+      icon: <ReceiptLongIcon />,
+      gradient: "linear-gradient(135deg, #00838f, #4dd0e1)",
+    },
+  ].map(({ text, icon, gradient, value }) => (
+    <Card
+      key={text}
+      sx={{
+        flex: 1,
+        p: 3,
+        borderRadius: "16px",
+        background: gradient,
+        color: "white",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+      }}
+    >
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+        <Box>
+          <Typography variant="subtitle2">{text}</Typography>
+          <Typography variant="h5">
+  {text === "Total Revenue" ? `₱${value.toLocaleString()}` : value}
+</Typography>
         </Box>
+        <Box sx={{ opacity: 0.2 }}>{icon}</Box>
+      </Box>
+    </Card>
+  ))}
+</Box>
       </Box>
 
       {/* TABLE */}
@@ -328,7 +533,7 @@ function FrontPage() {
           </TableHead>
 
           <TableBody>
-            {records
+            {filteredRecords
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
               .map((r) => (
                 <TableRow key={r.ID} hover>
@@ -343,18 +548,72 @@ function FrontPage() {
                   <TableCell align="center">{formatDate(r.RENEW_FROM)}</TableCell>
                   <TableCell align="center">{formatDate(r.RENEW_TO)}</TableCell>
                   <TableCell align="center">
-                    <Chip label={r.STATUS || "Pending"} color="info" size="small" />
-                  </TableCell>
+  <Chip
+    label={r.STATUS || "Pending"}
+    color={
+      r.STATUS === "Renew"
+        ? "success"
+        : r.STATUS === "Expired"
+        ? "error"
+        : r.STATUS === "Expiry"
+        ? "warning"
+        : r.STATUS === "Pending"
+        ? "info"
+        : "default"
+    }
+    size="small"
+    sx={{
+      fontWeight: "bold",
+      color:
+        r.STATUS === "Renew"
+          ? "#fff"
+          : r.STATUS === "Expired"
+          ? "#fff"
+          : r.STATUS === "Expiry"
+          ? "#000"
+          : "#fff",
+    }}
+  />
+</TableCell>
                   <TableCell align="center">
-                    <Button
-                      variant="contained"
-                      color="success"
-                      size="small"
-                      onClick={(e) => handleMenuOpen(e, r)}
-                    >
-                      🖨️ Print
-                    </Button>
-                  </TableCell>
+  <Stack direction="row" spacing={1} justifyContent="center">
+    <Button
+      variant="contained"
+      color="info"
+      size="small"
+      onClick={() => handleView(r)}
+    >
+      👁️ View
+    </Button>
+
+    <Button
+      variant="contained"
+      color="primary"
+      size="small"
+      onClick={() => handleUpdate(r)}
+    >
+      ✏️ Update
+    </Button>
+
+    <Button
+      variant="contained"
+      color="error"
+      size="small"
+      onClick={() => handleDelete(r.ID)}
+    >
+      🗑️ Delete
+    </Button>
+
+    <Button
+      variant="contained"
+      color="success"
+      size="small"
+      onClick={(e) => handleMenuOpen(e, r)}
+    >
+      🖨️ Print
+    </Button>
+  </Stack>
+</TableCell>
                 </TableRow>
               ))}
           </TableBody>
@@ -363,7 +622,7 @@ function FrontPage() {
         <TablePagination
           rowsPerPageOptions={[10, 20, 50]}
           component="div"
-          count={records.length}
+          count={filteredRecords.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -379,16 +638,16 @@ function FrontPage() {
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
-        <MenuItem onClick={() => handlePrint("application")}>Application PDF</MenuItem>
-        <MenuItem onClick={() => handlePrint("certification")}>Certification PDF</MenuItem>
-        <MenuItem onClick={() => handlePrint("order")}>Order PDF</MenuItem>
-        <MenuItem onClick={() => handlePrint("pnp")}>PNP Clearance PDF</MenuItem>
+        <MenuItem onClick={() => handlePrint("application")}>Application</MenuItem>
+        <MenuItem onClick={() => handlePrint("certification")}>Certification</MenuItem>
+        <MenuItem onClick={() => handlePrint("order")}>Order</MenuItem>
+        <MenuItem onClick={() => handlePrint("pnp")}>PNP Clearance</MenuItem>
       </Menu>
 
-      {/* DIALOG FORM */}
+      {/* ✅ DIALOG FORM */}
       <Dialog open={openForm} onClose={handleCloseForm} maxWidth="md" fullWidth>
         <DialogTitle sx={{ fontWeight: "bold" }}>
-          📝 New BPLO Franchise Entry
+          {editData ? "✏️ Edit BPLO Franchise Entry" : "📝 New BPLO Franchise Entry"}
           <IconButton
             aria-label="close"
             onClick={handleCloseForm}
@@ -399,7 +658,8 @@ function FrontPage() {
         </DialogTitle>
 
         <DialogContent dividers>
-          <BploForm onClose={handleCloseForm} />
+          {/* ✅ Pass editData to the form */}
+          <BploForm editData={editData} onClose={handleCloseForm} />
         </DialogContent>
       </Dialog>
     </Box>

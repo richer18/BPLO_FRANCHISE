@@ -37,7 +37,7 @@ const ExpandButton = styled(IconButton)(({ expand }) => ({
   transition: "transform 0.3s ease",
 }));
 
-export default function BploForm() {
+export default function BploForm({ editData }) {
   const [expanded, setExpanded] = useState({
     owner: true,
     vehicle: false,
@@ -70,6 +70,9 @@ export default function BploForm() {
     CHASSIS_NO: "",
     PLATE: "",
     COLOR: "",
+    LTO_ORIGINAL_RECEIPT: "",
+    LTO_CERTIFICATE_REGISTRATION: "",
+    LTO_MV_FILE_NO: "",
     DRIVER: "",
     ORIGINAL_RECEIPT_PAYMENT: "",
     PAYMENT_DATE: "",
@@ -85,8 +88,67 @@ export default function BploForm() {
     COMMENT: "",
   });
 
-  const makes = ["HONDA", "YAMAHA", "SUZUKI", "KAWASAKI", "SYM", "KYMCO", "OTHER"];
+  
+const [makes, setMakes] = useState([]);
+  //=======================LOAD MCH MAKE ===================================
+ useEffect(() => {
+  const fetchMakes = async () => {
+    try {
+      const { data } = await axiosInstance.get("/bplo/makes");
+      setMakes(data.length ? data : ["HONDA", "YAMAHA", "SUZUKI", "KAWASAKI", "SYM", "KYMCO", "OTHER"]);
+    } catch (err) {
+      console.error("❌ Failed to fetch makes:", err);
+      // fallback list
+      setMakes(["HONDA", "YAMAHA", "SUZUKI", "KAWASAKI", "SYM", "KYMCO", "OTHER"]);
+    }
+  };
+  fetchMakes();
+}, []);
 
+  // ===================== LOAD REGISTERED MCH NUMBERS =====================
+  const [registeredMchNumbers, setRegisteredMchNumbers] = useState([]);
+
+  useEffect(() => {
+    const fetchRegisteredMch = async () => {
+      try {
+        const { data } = await axiosInstance.get("bplo/registered-mch");
+        setRegisteredMchNumbers(data || []);
+      } catch (err) {
+        console.error("❌ Failed to fetch registered MCH numbers", err);
+        setRegisteredMchNumbers([]);
+      }
+    };
+    fetchRegisteredMch();
+  }, []);
+
+  // ===================== HANDLE EDIT DATA =====================
+  useEffect(() => {
+  if (editData) {
+    setEditId(editData.ID);
+
+    const formatDate = (d) => (d ? dayjs(d).format("YYYY-MM-DD") : "");
+
+    setForm((prev) => ({
+      ...prev,
+      ...editData,
+      DATE: formatDate(editData.DATE),
+      CEDULA_DATE: formatDate(editData.CEDULA_DATE),
+      PAYMENT_DATE: formatDate(editData.PAYMENT_DATE),
+      RENEW_FROM: formatDate(editData.RENEW_FROM),
+      RENEW_TO: formatDate(editData.RENEW_TO),
+      LICENSE_VALID_DATE: formatDate(editData.LICENSE_VALID_DATE),
+
+      // ✅ Fix for dropdown case mismatch
+      MAKE: editData.MAKE
+        ? editData.MAKE.toUpperCase().trim()
+        : "",
+    }));
+  } else {
+    resetForm();
+  }
+}, [editData]);
+
+  // ===================== AUTO-COMPUTE RENEW_TO + STATUS =====================
   useEffect(() => {
     if (form.RENEW_FROM) {
       const renewFrom = dayjs(form.RENEW_FROM);
@@ -96,22 +158,25 @@ export default function BploForm() {
       setForm((prev) => ({
         ...prev,
         RENEW_TO: renewTo,
-        STATUS: isActive ? "Pending" : "Completed",
+        STATUS: isActive ? "ACTIVE" : "EXPIRED",
       }));
     } else {
-      setForm((prev) => ({ ...prev, RENEW_TO: "", STATUS: "Pending" }));
+      setForm((prev) => ({ ...prev, RENEW_TO: "", STATUS: "PENDING" }));
     }
   }, [form.RENEW_FROM]);
 
+  // ===================== HANDLE CHANGE =====================
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
   };
 
+  // ===================== HANDLE SUBMIT =====================
   const handleSubmit = async (e) => {
     e.preventDefault();
     const payload = { ...form };
     if (!payload.DATE) payload.DATE = dayjs().format("YYYY-MM-DD");
+
     try {
       if (editId) {
         await axiosInstance.put(`/bplo/${editId}`, payload);
@@ -127,6 +192,7 @@ export default function BploForm() {
     }
   };
 
+  // ===================== RESET FORM =====================
   const resetForm = () => {
     setEditId(null);
     setForm({
@@ -149,6 +215,9 @@ export default function BploForm() {
       CHASSIS_NO: "",
       PLATE: "",
       COLOR: "",
+      LTO_ORIGINAL_RECEIPT: "",
+      LTO_CERTIFICATE_REGISTRATION: "",
+      LTO_MV_FILE_NO: "",
       DRIVER: "",
       ORIGINAL_RECEIPT_PAYMENT: "",
       PAYMENT_DATE: "",
@@ -164,6 +233,7 @@ export default function BploForm() {
       COMMENT: "",
     });
   };
+
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: "auto" }}>
@@ -345,13 +415,45 @@ export default function BploForm() {
             <CardContent>
               <div className="container-fluid">
                 <div className="row g-3">
+                {/* ===== MCH NO COMBO BOX ===== */}
+
+      <div className="col-md-3">
+  <TextField
+    select
+    label="MCH No"
+    name="MCH_NO"
+    fullWidth
+    value={form.MCH_NO}
+    onChange={handleChange}
+  >
+    <MenuItem value="">Select</MenuItem>
+
+    {Array.from({ length: 163 }, (_, i) => {
+      const num = String(i + 1).padStart(3, "0");
+
+      // ✅ Hide taken MCH numbers
+      const isTaken =
+        registeredMchNumbers.includes(num) && num !== form.MCH_NO;
+
+      if (isTaken) return null; // ✅ Skip taken numbers entirely
+
+      return (
+        <MenuItem key={num} value={num}>
+          {num}
+        </MenuItem>
+      );
+    })}
+  </TextField>
+</div>
                   {[
-                    ["MCH_NO", "MCH No"],
                     ["FRANCHISE_NO", "Franchise No"],
                     ["MOTOR_NO", "Motor No"],
                     ["CHASSIS_NO", "Chassis No"],
                     ["PLATE", "Plate"],
                     ["COLOR", "Color"],
+                    ["LTO_ORIGINAL_RECEIPT", "LTO OR"],
+                    ["LTO_CERTIFICATE_REGISTRATION", "LTO CR"],
+                    ["LTO_MV_FILE_NO", "MV. FILE NO"],
                     ["DRIVER", "Driver"],
                   ].map(([field, label]) => (
                     <div className="col-md-3" key={field}>
@@ -367,20 +469,20 @@ export default function BploForm() {
 
                   <div className="col-md-3">
                     <TextField
-                      select
-                      label="Make"
-                      name="MAKE"
-                      fullWidth
-                      value={form.MAKE}
-                      onChange={handleChange}
-                    >
-                      <MenuItem value="">Select</MenuItem>
-                      {makes.map((m) => (
-                        <MenuItem key={m} value={m}>
-                          {m}
-                        </MenuItem>
-                      ))}
-                    </TextField>
+  select
+  label="Make"
+  name="MAKE"
+  fullWidth
+  value={form.MAKE || ""}
+  onChange={handleChange}
+>
+  <MenuItem value="">Select</MenuItem>
+  {makes.map((m) => (
+    <MenuItem key={m} value={m}>
+      {m}
+    </MenuItem>
+  ))}
+</TextField>
                   </div>
                 </div>
               </div>
