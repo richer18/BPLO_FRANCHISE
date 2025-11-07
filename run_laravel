@@ -1,1 +1,8 @@
+cd backend
 php artisan serve --host=192.168.101.109 --port=8005
+
+cd frontend
+npm start
+
+create controller
+php artisan make:controller TotalRevenueController

@@ -7,13 +7,29 @@ use Illuminate\Support\Facades\DB;
 
 class TotalRegisteredController extends Controller
 {
+    // ✅ Returns overall total registered count
     public function index()
     {
-        // Count total registered based on MCH_NO
         $overallTotal = DB::table('bplo_records')->count('MCH_NO');
 
         return response()->json([
             'overall_registered' => $overallTotal
         ]);
+    }
+
+    // ✅ Returns detailed list of all registered records
+    public function list()
+    {
+        $records = DB::table('bplo_records')
+            ->select(
+                'DATE as DATE_REGISTERED',
+                DB::raw("CONCAT(FNAME, ' ', COALESCE(MNAME, ''), ' ', LNAME) as NAME"),
+                'MCH_NO',
+                'FRANCHISE_NO'
+            )
+            ->orderBy('DATE', 'DESC')
+            ->get();
+
+        return response()->json($records);
     }
 }

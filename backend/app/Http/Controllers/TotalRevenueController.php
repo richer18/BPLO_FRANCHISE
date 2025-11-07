@@ -7,9 +7,25 @@ use Illuminate\Support\Facades\DB;
 
 class TotalRevenueController extends Controller
 {
-    public function index()
+    /**
+     * 🗓️ Get total revenue per year
+     */
+    public function yearly()
     {
-        // Assuming your table name is `bplo_records`
+        $yearlyTotals = DB::table('bplo_records')
+            ->selectRaw('YEAR(PAYMENT_DATE) as year, SUM(AMOUNT) as total')
+            ->groupBy(DB::raw('YEAR(PAYMENT_DATE)'))
+            ->orderBy('year', 'DESC')
+            ->get();
+
+        return response()->json($yearlyTotals);
+    }
+
+    /**
+     * 💰 Get overall total revenue
+     */
+    public function overall()
+    {
         $overallTotal = DB::table('bplo_records')->sum('AMOUNT');
 
         return response()->json([

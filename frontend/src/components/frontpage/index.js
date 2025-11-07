@@ -34,6 +34,12 @@ import GavelIcon from "@mui/icons-material/Gavel";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import BploForm from "../form/BploForm";
+import BPLODialogPopupTOTAL from "../bplo_popup_Dialog/BPLODialogPopupTOTAL";
+import BPLODialogPopupREGISTERED from "../bplo_popup_Dialog/BPLODialogPopupRegistered.jsx";
+import BPLODialogPopupRENEW from "../bplo_popup_Dialog/BPLODialogPopupRenew.jsx";
+import BPLODialogPopupEXPIRY from "../bplo_popup_Dialog/BPLODialogPopupExpiry.jsx";
+import BPLODialogPopupEXPIRE from "../bplo_popup_Dialog/BPLODialogPopupExpired.jsx";
+
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
   whiteSpace: "nowrap",
@@ -77,6 +83,13 @@ function FrontPage() {
   const [expiry, setExpiry] = useState(0);
   const [expired, setExpired] = useState(0);
 
+  // State for Popups
+  const [openTotalRevenue, setOpenTotalRevenue] = useState(false);
+  const [openTotalRegistered, setOpenTotalRegistered] = useState(false);
+  const [openTotalRenew, setOpenTotalRenew] = useState(false);
+  const [openTotalExpiry, setOpenTotalExpiry] = useState(false);
+  const [openTotalExpire, setOpenTotalExpire] = useState(false);
+
 
 
 
@@ -84,7 +97,7 @@ function FrontPage() {
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        const response = await axiosInstance.get("TotalRevenue");
+        const response = await axiosInstance.get("bplo/total-revenue/overall");
 
         // ✅ Laravel returns: { overall_total: 12345.67 }
         const totalRevenue = parseFloat(
@@ -293,6 +306,49 @@ const applyFilters = () => {
     fetchRecords(); // refresh list after save/update
   };
 
+
+  // TOTAL POPUP
+  const handleClickTotalRevenue = () => {
+    setOpenTotalRevenue(true);
+  };
+  const handleCloseTOTALRevenue = () => {
+    setOpenTotalRevenue(false);
+  };
+
+  const handleClickTotalRegistered = () => {
+    setOpenTotalRegistered(true);
+  };
+  const handleCloseTotalRegistered = () => {
+    setOpenTotalRegistered(false);
+  };
+
+   const handleClickTotalRenew = () => {
+    setOpenTotalRenew(true);
+  };
+  const handleCloseTotalRenew = () => {
+    setOpenTotalRenew(false);
+  };
+
+  const handleClickTotalExpiry = () => {
+    setOpenTotalExpiry(true);
+  };
+  const handleCloseTotalExpiry = () => {
+    setOpenTotalExpiry(false);
+  };
+
+  const handleClickTotalExpire = () => {
+    setOpenTotalExpire(true);
+  };
+  const handleCloseTotalExpire = () => {
+    setOpenTotalExpire(false);
+  };
+
+
+
+
+
+
+
   return (
     <Box
       sx={{
@@ -458,59 +514,76 @@ const applyFilters = () => {
   sx={{ mt: 4, flexDirection: { xs: "column", sm: "row" } }}
 >
   {[
-    {
-      value: allTotal,
-      text: "Total Revenue",
-      icon: <AccountBalanceIcon />,
-      gradient: "linear-gradient(135deg, #1976d2, #63a4ff)",
-    },
-    {
-      value: registered,
-      text: "Total Registered",
-      icon: <BusinessCenterIcon />,
-      gradient: "linear-gradient(135deg, #2e7d32, #66bb6a)",
-    },
-    {
-      value: renew,
-      text: "Total Renew",
-      icon: <GavelIcon />,
-      gradient: "linear-gradient(135deg, #ed6c02, #ffb74d)",
-    },
-    {
-      value: expiry,
-      text: "Total Expiry",
-      icon: <StorefrontIcon />,
-      gradient: "linear-gradient(135deg, #6a1b9a, #ab47bc)",
-    },
-    {
-      value: expired,
-      text: "Total Expired",
-      icon: <ReceiptLongIcon />,
-      gradient: "linear-gradient(135deg, #00838f, #4dd0e1)",
-    },
-  ].map(({ text, icon, gradient, value }) => (
-    <Card
-      key={text}
-      sx={{
-        flex: 1,
-        p: 3,
-        borderRadius: "16px",
-        background: gradient,
-        color: "white",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-      }}
-    >
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-        <Box>
-          <Typography variant="subtitle2">{text}</Typography>
-          <Typography variant="h5">
-  {text === "Total Revenue" ? `₱${value.toLocaleString()}` : value}
-</Typography>
-        </Box>
-        <Box sx={{ opacity: 0.2 }}>{icon}</Box>
+  {
+    value: allTotal,
+    text: "Total Revenue",
+    icon: <AccountBalanceIcon />,
+    gradient: "linear-gradient(135deg, #1976d2, #63a4ff)",
+    onClick: handleClickTotalRevenue, // use your defined function name
+  },
+  {
+    value: registered,
+    text: "Total Registered",
+    icon: <BusinessCenterIcon />,
+    gradient: "linear-gradient(135deg, #2e7d32, #66bb6a)",
+    onClick: handleClickTotalRegistered,
+  },
+  {
+    value: renew,
+    text: "Total Renew",
+    icon: <GavelIcon />,
+    gradient: "linear-gradient(135deg, #ed6c02, #ffb74d)",
+    onClick: handleClickTotalRenew,
+  },
+  {
+    value: expiry,
+    text: "Total Expiry",
+    icon: <StorefrontIcon />,
+    gradient: "linear-gradient(135deg, #6a1b9a, #ab47bc)",
+    onClick: handleClickTotalExpiry,
+  },
+  {
+    value: expired,
+    text: "Total Expired",
+    icon: <ReceiptLongIcon />,
+    gradient: "linear-gradient(135deg, #00838f, #4dd0e1)",
+    onClick: handleClickTotalExpire,
+  },
+{
+    value: 0,
+    text: "Total Not Registered",
+    icon: <ReceiptLongIcon />,
+    gradient: "linear-gradient(135deg, #8f0053ff, #e14d72ff)",
+
+  },
+
+].map(({ text, icon, gradient, value, onClick }) => (
+  <Card
+    key={text}
+    onClick={onClick} // ✅ now clickable
+    sx={{
+      flex: 1,
+      p: 3,
+      borderRadius: "16px",
+      background: gradient,
+      color: "white",
+      boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+      cursor: onClick ? "pointer" : "default", // nice UX touch
+      transition: "transform 0.2s",
+      "&:hover": onClick ? { transform: "scale(1.03)" } : {},
+    }}
+  >
+    <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+      <Box>
+        <Typography variant="subtitle2">{text}</Typography>
+        <Typography variant="h5">
+          {text === "Total Revenue" ? `₱${value.toLocaleString()}` : value}
+        </Typography>
       </Box>
-    </Card>
-  ))}
+      <Box sx={{ opacity: 0.2 }}>{icon}</Box>
+    </Box>
+  </Card>
+))}
 </Box>
       </Box>
 
@@ -643,6 +716,31 @@ const applyFilters = () => {
         <MenuItem onClick={() => handlePrint("order")}>Order</MenuItem>
         <MenuItem onClick={() => handlePrint("pnp")}>PNP Clearance</MenuItem>
       </Menu>
+
+      <BPLODialogPopupTOTAL
+        open={openTotalRevenue}
+        onClose={handleCloseTOTALRevenue}
+      />
+
+      <BPLODialogPopupREGISTERED
+        open={openTotalRegistered}
+        onClose={handleCloseTotalRegistered}
+      />
+
+      <BPLODialogPopupRENEW
+        open={openTotalRenew}
+        onClose={handleCloseTotalRenew}
+      />
+
+      <BPLODialogPopupEXPIRY
+        open={openTotalExpiry}
+        onClose={handleCloseTotalExpiry}
+      />
+
+      <BPLODialogPopupEXPIRE
+        open={openTotalExpire}
+        onClose={handleCloseTotalExpire}
+      />
 
       {/* ✅ DIALOG FORM */}
       <Dialog open={openForm} onClose={handleCloseForm} maxWidth="md" fullWidth>
